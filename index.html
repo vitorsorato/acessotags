@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Permissões RFID</title>
+    </head>
+
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.1.2/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut } from "https://www.gstatic.com/firebasejs/9.1.2/firebase-auth.js";
+        import { getDatabase, ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/9.1.2/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAAu4vhRehJobrCF1X6gfm8detAnmvHf-A",
+            authDomain: "acessotags.firebaseapp.com",
+            databaseURL:"https://acessotags-default-rtdb.firebaseio.com/",
+            projectId: "acessotags",
+            storageBucket: "acessotags.appspot.com",
+            messagingSenderId: "852277052859",
+            appId: "1:852277052859:web:6c94d7fdd21b1de972309e",
+            measurementId: "G-3642XED7HZ"
+        };
+    
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+        const db = getDatabase();
+        const selectElement = (element) => document.querySelector(element);
+
+
+        document.getElementById("login").addEventListener('click', function(){
+            signInWithRedirect(auth, provider);
+            getRedirectResult(auth)
+                .then((result) => {
+                    const credential = GoogleAuthProvider.credentialFromResult(result);
+                    const token = credential.accessToken;
+                    var user = result.user;
+                }).catch((error) => {
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    const email = error.email;
+                    const credential = GoogleAuthProvider.credentialFromError(error);
+                    console.log(errorCode);
+                    console.log(errorMessage);
+                });
+        });
+
+        document.getElementById("logout").addEventListener('click', function(){
+                signOut(auth);
+        });
+
+        console.log(auth);
+        
+
+        auth.onAuthStateChanged(function(user) {
+            if (user) {
+                console.log(user.email);
+                document.getElementById("email").innerHTML = user.email;
+                selectElement('itens').classList.toggle('active');
+            } else {
+                console.log("Sem usuário");
+                document.getElementById("email").innerHTML = "Entre com o Google para continuar..";
+                selectElement('chips').classList.toggle('active');
+                selectElement('header').classList.toggle('active');
+
+            }
+        });
+
+        onValue(ref(db, 'tags'), (snapshot) => {
+            document.querySelectorAll(".noun-section .noun").forEach(e => e.parentNode.removeChild(e));
+
+            console.log(snapshot.val());
+            var i = 0;
+            snapshot.forEach(doc => {
+                i++
+                var input = document.createElement("input");
+                input.type = "text";
+                input.name = "member" + i;
+                input.placeholder = "Cliente";
+                input.className = "nome"
+                input.setAttribute("value", doc.val().nome);
+                input.addEventListener('change', (event) => {
+                    set(ref(db, 'tags/' + doc.key + "/nome"), input.value)
+                });
+                input.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                });
+
+
+                var tagTittle = document.createElement("div");
+                tagTittle.className = "tagTittle"
+                tagTittle.innerHTML = "Tag";
+
+                var tagValue = document.createElement("div");
+                tagValue.className = "tagValue"
+                tagValue.innerHTML = doc.key.replaceAll("_", " ");
+
+                var dataTittle = document.createElement("div");
+                dataTittle.className = "dataTittle"
+                dataTittle.innerHTML = "Cadastro";
+
+                var dataValue = document.createElement("div");
+                dataValue.className = "dataValue"
+                dataValue.innerHTML = doc.val().dataCadastro;
+
+                var novoChip = document.createElement("div");
+                novoChip.className = "i-chip noun"
+                novoChip.setAttribute("id", "noun-chip-"+ i);
+    
+                novoChip.appendChild(input);
+                novoChip.appendChild(tagTittle);
+                novoChip.appendChild(tagValue);
+                novoChip.appendChild(dataTittle);
+                novoChip.appendChild(dataValue);
+                novoChip.setAttribute( "autocomplete", "off" ); 
+
+                novoChip.addEventListener('click', (event) => {
+                    set(ref(db, 'tags/' + doc.key + "/permissao"), (doc.val().permissao == "permitido"? "nao_permitido" : "permitido"))
+                });
+
+                if(doc.val().permissao == "permitido"){
+                    novoChip.classList.toggle('active');
+                }
+
+                document.getElementById("noun-section").appendChild(novoChip);
+            })
+
+        });
+
+    </script>
+
+    <body>
+        <header>
+            <button id="logout" class="btn-text logout">logout</button>
+            <div id="email" class="email">Email</div>
+        </header>
+        <itens class="itens">
+            <form autocomplete="off" placeholder="S&zwnj;treet">
+                <div class="noun-section" id="noun-section">
+                </div>
+            </form>
+        </itens>
+
+        <chips class="chips">
+            <div id="mainButton">
+                <button id="login" class="btn-text">Login com Google</button>
+                <div class="modal">
+                </div>
+            </div>
+            <div class="welcome">Bem-vindo(a). Entre para continuar.</div>
+        </chips>
+    </body>
+
+    <style>
+
+        @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@500&display=swap');        *{
+          margin: 0px;
+          padding: 0px;
+        }
+        html, body{
+            background: #000000;
+            font-family: 'Comfortaa', cursive;
+            color: rgb(12, 15, 82);
+            font-size: 30px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 0px;
+            width: 0px;
+            background: #111; /* make scrollbar transparent */
+        }
+
+
+        .noun-section{
+            margin: 2.5%;
+            margin-top: 90px;
+            text-align: center;
+
+        }
+
+        .i-chip {
+            color: hsl(245, 74%, 88%);
+            width: 200px;
+            height: 100px;
+            background: #312E2E;
+            margin: 0 10px 14px 0;
+            vertical-align: top;
+            text-overflow: ellipsis;
+            border-radius: 25px;
+            padding: 15px 35px;
+            overflow: hidden;
+            position: relative;
+            display: inline-block;
+            white-space: nowrap;
+            word-break: break-word;
+            cursor: pointer;
+            transition: 0.5s;
+        }
+
+        .i-chip.active {
+            background: #4db484b7;
+        }
+
+        .i-chip:hover{
+            box-shadow: 0 2px 8px rgba(50, 83, 81, 0.808);
+            transition: 0.5s;
+        }
+
+        .nome{
+            position: absolute;
+            border: none;
+            border-radius: 12px;
+            width: 220px;
+            height: 30px;
+            left: 15px;
+            top: 20px;
+            outline: none;
+            font-size: 18px;
+            background: #ffd50033;
+            color: #73ff00;
+            padding: 5px 10px;
+        }
+
+        .nome::placeholder { /* Chrome, Firefox, Opera, Safari 10.1+ */
+            color: #a7a7a7c2;
+        }
+
+        .chips {
+            top: -100%;
+            height: 100%;
+            width: 100%;
+            position: fixed;
+            transition: 0.8s;
+            background: #14221c;
+            -webkit-backdrop-filter:saturate(180%) blur(20px);
+            backdrop-filter: blur(1rem);
+            visibility: hidden;
+            overflow-y: auto; 
+            display: flex;
+            background-color: #000000;
+            justify-content: center;
+        }
+
+        chips.active {
+            top: 0%;
+            background: #00000049;;
+            visibility: visible;
+        }
+
+        .itens{
+            visibility: hidden;
+        }
+
+        .itens.active{
+            visibility: visible;
+        }
+
+        .btn-text {
+            display: block;
+            padding: 10px 20px;
+            position: relative;
+            background-color: #00a7ee;
+            color: white;
+            border: none;
+            outline: none;
+            font-size: 24px;
+            font-weight: bold;
+            overflow: hidden;
+            border-radius: 10px;
+            top: calc(50%);
+            cursor: pointer;
+
+        }
+
+        .btn-text:active {
+            background-color: #05648d;
+        }
+
+        .logout{
+            top: 13px;
+            right: 30px;
+            position: absolute;
+            font-size: 16px;
+            padding: 5px 10px;
+        }
+
+        .email{
+            margin: 10px;
+            margin-right: 110px;
+            top: 10px;
+            right: 0;
+            position: absolute;
+            font-size: 16px;
+            color: rgb(120, 148, 161);
+        }
+
+
+
+        .welcome {
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            padding-bottom: 15px;
+            font-size: 16px;
+            position: absolute;
+            text-align: center;
+            text-transform: none;
+            letter-spacing: initial;
+            color: rgb(156, 144, 209);
+        }
+
+        .tagTittle{
+            font-size: 10px;
+            top: 75px;
+            left: 20px;
+            position: absolute;
+        }
+
+        .tagValue{
+            font-size: 12px;
+            top: 90px;
+            left: 20px;
+            position: absolute;
+            color: rgba(208, 255, 0, 0.671);
+        }
+
+        .dataTittle{
+            font-size: 10px;
+            top: 75px;
+            left: 165px;
+            position: absolute;
+        }
+
+        .dataValue{
+            font-size: 12px;
+            top: 90px;
+            left: 165px;
+            position: absolute;
+            color: rgba(208, 255, 0, 0.671);
+        }
+
+        header{
+            position: fixed;
+            top: -2px;
+            left: -1%;
+            width: 101%;
+            height: 35px;
+            padding-top: 3px;
+            -webkit-backdrop-filter:saturate(180%) blur(20px);
+            backdrop-filter: blur(1rem);
+            background-color: rgba(16, 66, 58, 0.171);
+            border-bottom: #328a6f2f;
+            border-width: 0.5px;
+            border-style: solid;
+            padding: 10px;
+            z-index: 2;
+            visibility: visible;
+        }
+
+        header.active{
+            visibility: hidden;
+        }
+
+      </style>
+</html>
